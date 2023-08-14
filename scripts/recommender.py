@@ -1,9 +1,23 @@
 import re
 import numpy as np
+import pickle
+import pandas as pd
+
+# data = pickle.load(open('new_data.pkl' , 'rb'))
+# client_req = ['TypeScript','React TS']
+# project_type = 'Client'
+# custom_levels = ['Intermediate']
+
+# map skill levels to numerical represenation
+skill_mapping = {
+      '-': 0,
+      'Beginner': 1, 
+      'Intermediate': 2,
+      'Advanced': 3, 
+      'Expert': 4}
 
 
-
-def recommend(data, client_req, project_type, skill, rank, experience, cdc, internal, client):
+def recommend(data, client_req, project_type, skill, rank, experience, cdc, internal, client,custom_levels):
     if project_type == 'Client':
       df = data[data['Client ready'] == 1]
     else:
@@ -58,21 +72,13 @@ def recommend(data, client_req, project_type, skill, rank, experience, cdc, inte
       df.loc[i, "client_projects_count"] = df.loc[i, "total_projects_count"] - df.loc[i, "internal_projects_count"]
 
     
-    
 
-
-    # map skill levels to numerical represenation
-    skill_mapping = {
-          'Beginner': 1, 
-          'Intermediate': 2,
-          'Advanced': 3, 
-          'Expert': 4}
-
-    for req in client_req:
-        df.loc[:, req] = df[req].map(skill_mapping)
+    # for req in client_req:
+    #     df.loc[:, req] = df[req].map(skill_mapping)
 
     # Replace NaN or '-' with 0 in the specified columns
     df.loc[:, client_req] = df[client_req].fillna(0)
+    df.loc[:, client_req] = df[client_req].replace(skill_mapping)
 
     # calc scores
     skill_multiplier = skill #3
@@ -82,8 +88,21 @@ def recommend(data, client_req, project_type, skill, rank, experience, cdc, inte
     experience_multiplier = experience #2
     cdc_multiplier = cdc #3
 
+    custom_levels_map = list((pd.Series(custom_levels)).map(skill_mapping))
 
-    df.loc[:, 'Skill Score'] = df[client_req].mul(skill_multiplier).sum(axis=1)
+    dframes = []
+    if len(custom_levels):
+      for i,j in zip(list(df[client_req].columns),custom_levels_map):
+        dframe = df[(df[i]>=j)]
+        dframes.append(dframe)
+      df_merge = pd.concat(dframes,join='inner', axis=1)
+      df = df.loc[df_merge.index]
+    else:
+      df
+       
+
+
+    df.loc[:,'Skill Score'] = df[client_req].sum(axis=1).mul(skill_multiplier)
     df.loc[:, 'Rank Score'] = df['Rank'].mul(rank_multiplier)
     df.loc[:, 'Internal Project Score'] = df['internal_projects_count'].mul(internal_mulitplier)
     df.loc[:, 'Client Project Score'] = df['client_projects_count'].mul(client_multiplier)
@@ -133,7 +152,7 @@ def recommend(data, client_req, project_type, skill, rank, experience, cdc, inte
       df["Concat"] += df[req]
 
 
-    for i in range(len(df)):
+    for i in df.index:
       if re.search("-", df.loc[i, "Concat"], re.IGNORECASE):
         df_ideal = df_ideal.drop(i)
       else:
@@ -145,6 +164,7 @@ def recommend(data, client_req, project_type, skill, rank, experience, cdc, inte
     df = df.loc[:, output_columns].sort_values('Score', ascending=False, ignore_index=True).set_index("ID")
 
 
+    
 
-    return df_ideal, df_nonideal, df
+    return  df_ideal,df_nonideal,df
 
