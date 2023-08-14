@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 from recommender import recommend
+# import pandas as pd
 
 
 st.markdown("""
@@ -28,6 +29,7 @@ div.st-ef.st-e6.st-de.st-eg.st-eh.st-ei:before
 
 # Loading the data
 data = pickle.load(open('new_data.pkl' , 'rb'))
+# data = pd.read_excel('Global Staffing Tracker.xlsx')
 
 # List of skillset
 skillsets = data.columns[9:-3]
@@ -38,14 +40,25 @@ st.write("---")
 
 
 # Project type
-project_type = st.radio("**PROJECT TYPE:**", options=('Internal', 'Client'), horizontal= True)
+project_type = st.radio("**PROJECT TYPE:**", options=('Internal', 'Client'),horizontal= True)
  
+#Project Name
+st.text_input('Project Name', placeholder='Project Name')
 
 # Client requirement input
 client_req = st.multiselect("", options=skillsets)
+
+# Level
 # if client_req:
 #   levels = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
 #   client_req_level = st.multiselect("", options=levels)
+
+with st.expander("Set custom skill level"):
+  cols=st.columns(1)
+  with cols[0]:
+    if client_req:
+      levels = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
+      custom_levels = st.multiselect("", options=levels)
 
 # Custom weights
 with st.expander("Set custom weights"):
@@ -64,11 +77,10 @@ with st.expander("Set custom weights"):
     client = st.number_input('**Client Project**', min_value=1, max_value=3, value= 3, step=1)
 
 
-
 if st.button('**Recommend**'):
     st.write("")
     try:
-      ideal, nonideal, all = recommend(data, client_req, project_type, skill, rank, experience, cdc, internal, client)
+      ideal, nonideal, all = recommend(data, client_req, project_type, skill, rank, experience, cdc, internal, client, custom_levels)
 
       st.write("**IDEAL:** Employee(s) with expertise in **all** project requirement(s)")
       ideal.iloc[:10, :]
